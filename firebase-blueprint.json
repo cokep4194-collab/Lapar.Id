@@ -1,0 +1,303 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Akun pengguna Lapar.id (Customer, Seller, atau Admin).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID Firebase Auth pengguna." },
+        "displayName": { "type": "string", "description": "Nama lengkap pengguna." },
+        "email": { "type": "string", "format": "email", "description": "Email akun Google pengguna." },
+        "role": { "type": "string", "enum": ["customer", "seller", "admin"], "description": "Peran akses pengguna." },
+        "nimOrUnit": { "type": "string", "description": "NIM mahasiswa atau nama unit/fakultas." },
+        "phone": { "type": "string", "description": "Nomor WhatsApp/telepon." },
+        "photoUrl": { "type": "string", "description": "URL foto profil." },
+        "active": { "type": "boolean", "description": "Status aktif akun." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp server saat dibuat (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp server saat diperbarui (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "displayName", "email", "role", "active", "createdAt", "updatedAt"]
+    },
+    "Seller": {
+      "title": "Seller",
+      "description": "Profil privat UMKM penjual kantin.",
+      "type": "object",
+      "properties": {
+        "sellerId": { "type": "string", "description": "UID penjual." },
+        "ownerName": { "type": "string", "description": "Nama pemilik UMKM." },
+        "businessName": { "type": "string", "description": "Nama usaha kantin." },
+        "phone": { "type": "string", "description": "Nomor kontak penjual." },
+        "campusArea": { "type": "string", "description": "Area atau gedung kantin kampus." },
+        "verified": { "type": "boolean", "description": "Status verifikasi Admin." },
+        "active": { "type": "boolean", "description": "Status operasional penjual." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sellerId", "ownerName", "businessName", "campusArea", "verified", "active", "createdAt", "updatedAt"]
+    },
+    "Stall": {
+      "title": "Stall",
+      "description": "Etalase publik stan kantin kampus.",
+      "type": "object",
+      "properties": {
+        "sellerId": { "type": "string", "description": "UID pemilik stan." },
+        "name": { "type": "string", "description": "Nama stan kantin." },
+        "description": { "type": "string", "description": "Deskripsi stan." },
+        "campusLocation": { "type": "string", "description": "Lokasi stan di kampus." },
+        "openHours": { "type": "string", "description": "Jam operasional stan." },
+        "bannerKey": { "type": "string", "description": "Kunci aset visual bawaan." },
+        "imageUrl": { "type": "string", "description": "URI foto stan opsional." },
+        "rating": { "type": "number", "description": "Rating stan (0..5)." },
+        "totalOrders": { "type": "integer", "description": "Jumlah pesanan selesai." },
+        "verified": { "type": "boolean", "description": "Status verifikasi Admin." },
+        "active": { "type": "boolean", "description": "Status buka/aktif stan." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sellerId", "name", "description", "campusLocation", "openHours", "bannerKey", "rating", "totalOrders", "verified", "active", "createdAt", "updatedAt"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Kategori menu makanan kampus.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "iconName": { "type": "string" },
+        "sortOrder": { "type": "integer" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "slug", "iconName", "sortOrder", "active", "createdAt", "updatedAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Menu makanan/minuman pada stan dengan kuota harian dan Flash Deal.",
+      "type": "object",
+      "properties": {
+        "stallId": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "categoryName": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "integer" },
+        "discountPrice": { "type": "integer" },
+        "flashDealActive": { "type": "boolean" },
+        "flashDealLabel": { "type": "string" },
+        "dailyQuota": { "type": "integer" },
+        "remainingStock": { "type": "integer" },
+        "active": { "type": "boolean" },
+        "imageUrl": { "type": "string" },
+        "imageKey": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["stallId", "sellerId", "categoryId", "categoryName", "name", "description", "price", "flashDealActive", "dailyQuota", "remainingStock", "active", "imageKey", "createdAt", "updatedAt"]
+    },
+    "PickupSlot": {
+      "title": "PickupSlot",
+      "description": "Slot waktu pengambilan dengan batas kapasitas per jam.",
+      "type": "object",
+      "properties": {
+        "stallId": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "date": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "label": { "type": "string" },
+        "capacity": { "type": "integer" },
+        "bookedCount": { "type": "integer" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["stallId", "sellerId", "date", "startTime", "endTime", "label", "capacity", "bookedCount", "active", "createdAt", "updatedAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Pesanan pre-order per stan yang terpisah otomatis saat checkout.",
+      "type": "object",
+      "properties": {
+        "orderCode": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "stallId": { "type": "string" },
+        "stallName": { "type": "string" },
+        "paymentGroupId": { "type": "string" },
+        "items": { "type": "array" },
+        "totalAmount": { "type": "integer" },
+        "discountAmount": { "type": "integer" },
+        "finalAmount": { "type": "integer" },
+        "voucherCode": { "type": "string" },
+        "pickupDate": { "type": "string" },
+        "pickupSlotId": { "type": "string" },
+        "pickupSlotLabel": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING_PAYMENT", "PAID", "PREPARING", "READY_FOR_PICKUP", "COMPLETED", "EXPIRED", "CANCELLED"] },
+        "paymentStatus": { "type": "string", "enum": ["PENDING", "SETTLEMENT", "EXPIRE", "CANCEL"] },
+        "qrToken": { "type": "string" },
+        "groupOrderCode": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orderCode", "customerId", "customerName", "sellerId", "stallId", "stallName", "paymentGroupId", "items", "totalAmount", "discountAmount", "finalAmount", "pickupDate", "pickupSlotId", "pickupSlotLabel", "status", "paymentStatus", "qrToken", "createdAt", "updatedAt"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Catatan transaksi pembayaran Midtrans Sandbox.",
+      "type": "object",
+      "properties": {
+        "paymentGroupId": { "type": "string" },
+        "orderIds": { "type": "array" },
+        "customerId": { "type": "string" },
+        "grossAmount": { "type": "integer" },
+        "snapToken": { "type": "string" },
+        "redirectUrl": { "type": "string" },
+        "paymentType": { "type": "string" },
+        "midtransTransactionId": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "SETTLEMENT", "EXPIRE", "CANCEL"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["paymentGroupId", "orderIds", "customerId", "grossAmount", "status", "createdAt", "updatedAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Notifikasi realtime status pesanan untuk customer dan seller.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string" },
+        "relatedOrderId": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "message", "type", "read", "createdAt", "updatedAt"]
+    },
+    "Voucher": {
+      "title": "Voucher",
+      "description": "Katalog voucher dan voucher milik pengguna hasil tukar Lapar Points.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "discountAmount": { "type": "integer" },
+        "minOrderAmount": { "type": "integer" },
+        "pointsCost": { "type": "integer" },
+        "ownerUserId": { "type": "string" },
+        "redeemed": { "type": "boolean" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "title", "description", "discountAmount", "minOrderAmount", "pointsCost", "ownerUserId", "redeemed", "active", "createdAt", "updatedAt"]
+    },
+    "LoyaltyPoints": {
+      "title": "LoyaltyPoints",
+      "description": "Saldo dan riwayat Lapar Points milik mahasiswa.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "points": { "type": "integer" },
+        "totalEarned": { "type": "integer" },
+        "totalRedeemed": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "points", "totalEarned", "totalRedeemed", "createdAt", "updatedAt"]
+    },
+    "GroupOrder": {
+      "title": "GroupOrder",
+      "description": "Pesanan kelompok mahasiswa dengan kode tautan bersama.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "hostUserId": { "type": "string" },
+        "hostName": { "type": "string" },
+        "stallId": { "type": "string" },
+        "stallName": { "type": "string" },
+        "title": { "type": "string" },
+        "pickupDate": { "type": "string" },
+        "pickupSlotId": { "type": "string" },
+        "pickupSlotLabel": { "type": "string" },
+        "closesAtMillis": { "type": "integer" },
+        "status": { "type": "string", "enum": ["OPEN", "LOCKED", "COMPLETED"] },
+        "memberUids": { "type": "array" },
+        "items": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "hostUserId", "hostName", "stallId", "stallName", "title", "pickupDate", "pickupSlotId", "pickupSlotLabel", "closesAtMillis", "status", "memberUids", "items", "createdAt", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Penanda hak akses administrator.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Profil pengguna Lapar.id"
+    },
+    "/sellers/{sellerId}": {
+      "schema": { "$ref": "#/entities/Seller" },
+      "description": "Data privat penjual UMKM"
+    },
+    "/stalls/{stallId}": {
+      "schema": { "$ref": "#/entities/Stall" },
+      "description": "Etalase publik stan kantin"
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Kategori makanan"
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Daftar produk menu kantin"
+    },
+    "/pickup_slots/{slotId}": {
+      "schema": { "$ref": "#/entities/PickupSlot" },
+      "description": "Jadwal & kapasitas pengambilan pesanan"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Pesanan pre-order per stan"
+    },
+    "/payments/{paymentId}": {
+      "schema": { "$ref": "#/entities/Payment" },
+      "description": "Transaksi pembayaran Midtrans"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Notifikasi realtime pengguna"
+    },
+    "/vouchers/{voucherId}": {
+      "schema": { "$ref": "#/entities/Voucher" },
+      "description": "Voucher katalog & voucher hasil tukar poin"
+    },
+    "/loyalty_points/{userId}": {
+      "schema": { "$ref": "#/entities/LoyaltyPoints" },
+      "description": "Poin loyalitas pengguna"
+    },
+    "/group_orders/{groupId}": {
+      "schema": { "$ref": "#/entities/GroupOrder" },
+      "description": "Pesanan kelompok mahasiswa"
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Dokumen verifikasi administrator"
+    }
+  }
+}

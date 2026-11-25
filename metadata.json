@@ -1,0 +1,6 @@
+{
+  "name": "Lapar.id",
+  "description": "Platform pre-order makanan kampus tanpa antre dan tanpa ongkos kirim — Pesan Sekarang, Ambil Tepat Waktu.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,573 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        ('email' in request.auth.token &&
+         request.auth.token.email == 'raflisyawal2005@gmail.com' &&
+         request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidUser(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 80 &&
+             data.email is string && data.email.size() >= 3 && data.email.size() <= 120 &&
+             data.role in ['customer', 'seller', 'admin'] &&
+             data.active is bool &&
+             (!('nimOrUnit' in data) || (data.nimOrUnit is string && data.nimOrUnit.size() <= 80)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 30)) &&
+             (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500));
+    }
+
+    function isValidSeller(data) {
+      return data.sellerId is string && data.sellerId.size() >= 1 && data.sellerId.size() <= 128 &&
+             data.ownerName is string && data.ownerName.size() >= 2 && data.ownerName.size() <= 80 &&
+             data.businessName is string && data.businessName.size() >= 2 && data.businessName.size() <= 100 &&
+             data.campusArea is string && data.campusArea.size() >= 2 && data.campusArea.size() <= 100 &&
+             data.verified is bool &&
+             data.active is bool &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 30));
+    }
+
+    function isValidStall(data) {
+      return data.sellerId is string && data.sellerId.size() >= 1 && data.sellerId.size() <= 128 &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+             data.description is string && data.description.size() <= 500 &&
+             data.campusLocation is string && data.campusLocation.size() >= 2 && data.campusLocation.size() <= 120 &&
+             data.openHours is string && data.openHours.size() >= 2 && data.openHours.size() <= 60 &&
+             data.bannerKey is string && data.bannerKey.size() <= 64 &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500)) &&
+             data.rating is number && data.rating >= 0 && data.rating <= 5 &&
+             data.totalOrders is int && data.totalOrders >= 0 &&
+             data.verified is bool &&
+             data.active is bool;
+    }
+
+    function isValidCategory(data) {
+      return data.name is string && data.name.size() >= 2 && data.name.size() <= 50 &&
+             data.slug is string && data.slug.size() >= 2 && data.slug.size() <= 50 &&
+             data.iconName is string && data.iconName.size() >= 1 && data.iconName.size() <= 50 &&
+             data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 1000 &&
+             data.active is bool;
+    }
+
+    function isValidProduct(data) {
+      return data.stallId is string && isValidId(data.stallId) &&
+             data.sellerId is string && data.sellerId.size() >= 1 && data.sellerId.size() <= 128 &&
+             data.categoryId is string && data.categoryId.size() >= 1 && data.categoryId.size() <= 128 &&
+             data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 60 &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+             data.description is string && data.description.size() <= 600 &&
+             data.price is int && data.price > 0 && data.price <= 10000000 &&
+             (!('discountPrice' in data) || (data.discountPrice is int && data.discountPrice >= 0 && data.discountPrice <= data.price)) &&
+             data.flashDealActive is bool &&
+             (!('flashDealLabel' in data) || (data.flashDealLabel is string && data.flashDealLabel.size() <= 40)) &&
+             data.dailyQuota is int && data.dailyQuota >= 0 && data.dailyQuota <= 10000 &&
+             data.remainingStock is int && data.remainingStock >= 0 && data.remainingStock <= data.dailyQuota &&
+             data.active is bool &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500)) &&
+             data.imageKey is string && data.imageKey.size() <= 64;
+    }
+
+    function isValidPickupSlot(data) {
+      return data.stallId is string && isValidId(data.stallId) &&
+             data.sellerId is string && data.sellerId.size() >= 1 && data.sellerId.size() <= 128 &&
+             data.date is string && data.date.size() == 10 &&
+             data.startTime is string && data.startTime.size() >= 4 && data.startTime.size() <= 8 &&
+             data.endTime is string && data.endTime.size() >= 4 && data.endTime.size() <= 8 &&
+             data.label is string && data.label.size() >= 4 && data.label.size() <= 30 &&
+             data.capacity is int && data.capacity >= 1 && data.capacity <= 500 &&
+             data.bookedCount is int && data.bookedCount >= 0 && data.bookedCount <= data.capacity &&
+             data.active is bool;
+    }
+
+    function isValidOrder(data) {
+      return data.orderCode is string && data.orderCode.size() >= 4 && data.orderCode.size() <= 40 &&
+             data.customerId is string && data.customerId.size() >= 1 && data.customerId.size() <= 128 &&
+             data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 80 &&
+             data.sellerId is string && data.sellerId.size() >= 1 && data.sellerId.size() <= 128 &&
+             data.stallId is string && isValidId(data.stallId) &&
+             data.stallName is string && data.stallName.size() >= 1 && data.stallName.size() <= 100 &&
+             data.paymentGroupId is string && data.paymentGroupId.size() >= 4 && data.paymentGroupId.size() <= 128 &&
+             data.items is list && data.items.size() >= 1 && data.items.size() <= 30 && data.items[0] is map &&
+             data.totalAmount is int && data.totalAmount > 0 && data.totalAmount <= 50000000 &&
+             data.discountAmount is int && data.discountAmount >= 0 && data.discountAmount <= data.totalAmount &&
+             data.finalAmount is int && data.finalAmount >= 0 && data.finalAmount == data.totalAmount - data.discountAmount &&
+             (!('voucherCode' in data) || (data.voucherCode is string && data.voucherCode.size() <= 40)) &&
+             data.pickupDate is string && data.pickupDate.size() == 10 &&
+             data.pickupSlotId is string && isValidId(data.pickupSlotId) &&
+             data.pickupSlotLabel is string && data.pickupSlotLabel.size() >= 4 && data.pickupSlotLabel.size() <= 30 &&
+             data.status in ['PENDING_PAYMENT', 'PAID', 'PREPARING', 'READY_FOR_PICKUP', 'COMPLETED', 'EXPIRED', 'CANCELLED'] &&
+             data.paymentStatus in ['PENDING', 'SETTLEMENT', 'EXPIRE', 'CANCEL'] &&
+             data.qrToken is string && data.qrToken.size() >= 6 && data.qrToken.size() <= 64 &&
+             (!('groupOrderCode' in data) || (data.groupOrderCode is string && data.groupOrderCode.size() <= 32));
+    }
+
+    function isValidPayment(data) {
+      return data.paymentGroupId is string && data.paymentGroupId.size() >= 4 && data.paymentGroupId.size() <= 128 &&
+             data.orderIds is list && data.orderIds.size() >= 1 && data.orderIds.size() <= 20 && data.orderIds[0] is string &&
+             data.customerId is string && data.customerId.size() >= 1 && data.customerId.size() <= 128 &&
+             data.grossAmount is int && data.grossAmount >= 0 && data.grossAmount <= 100000000 &&
+             (!('snapToken' in data) || (data.snapToken is string && data.snapToken.size() <= 256)) &&
+             (!('redirectUrl' in data) || (data.redirectUrl is string && data.redirectUrl.size() <= 500)) &&
+             (!('paymentType' in data) || (data.paymentType is string && data.paymentType.size() <= 60)) &&
+             (!('midtransTransactionId' in data) || (data.midtransTransactionId is string && data.midtransTransactionId.size() <= 128)) &&
+             data.status in ['PENDING', 'SETTLEMENT', 'EXPIRE', 'CANCEL'];
+    }
+
+    function isValidNotification(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             data.message is string && data.message.size() >= 1 && data.message.size() <= 500 &&
+             data.type is string && data.type.size() >= 1 && data.type.size() <= 40 &&
+             (!('relatedOrderId' in data) || (data.relatedOrderId is string && data.relatedOrderId.size() <= 128)) &&
+             data.read is bool;
+    }
+
+    function isValidVoucher(data) {
+      return data.code is string && data.code.size() >= 3 && data.code.size() <= 30 &&
+             data.title is string && data.title.size() >= 2 && data.title.size() <= 100 &&
+             data.description is string && data.description.size() <= 300 &&
+             data.discountAmount is int && data.discountAmount > 0 && data.discountAmount <= 1000000 &&
+             data.minOrderAmount is int && data.minOrderAmount >= 0 && data.minOrderAmount <= 5000000 &&
+             data.pointsCost is int && data.pointsCost >= 0 && data.pointsCost <= 100000 &&
+             data.ownerUserId is string && data.ownerUserId.size() <= 128 &&
+             data.redeemed is bool &&
+             data.active is bool;
+    }
+
+    function isValidLoyaltyPoints(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.points is int && data.points >= 0 && data.points <= 10000000 &&
+             data.totalEarned is int && data.totalEarned >= 0 && data.totalEarned <= 10000000 &&
+             data.totalRedeemed is int && data.totalRedeemed >= 0 && data.totalRedeemed <= 10000000;
+    }
+
+    function isValidGroupOrder(data) {
+      return data.code is string && data.code.size() >= 4 && data.code.size() <= 24 &&
+             data.hostUserId is string && data.hostUserId.size() >= 1 && data.hostUserId.size() <= 128 &&
+             data.hostName is string && data.hostName.size() >= 1 && data.hostName.size() <= 80 &&
+             data.stallId is string && isValidId(data.stallId) &&
+             data.stallName is string && data.stallName.size() >= 1 && data.stallName.size() <= 100 &&
+             data.title is string && data.title.size() >= 2 && data.title.size() <= 100 &&
+             data.pickupDate is string && data.pickupDate.size() == 10 &&
+             data.pickupSlotId is string && data.pickupSlotId.size() <= 128 &&
+             data.pickupSlotLabel is string && data.pickupSlotLabel.size() <= 30 &&
+             data.closesAtMillis is int && data.closesAtMillis > 0 &&
+             data.status in ['OPEN', 'LOCKED', 'COMPLETED'] &&
+             data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 30 && data.memberUids[0] is string &&
+             data.items is list && data.items.size() <= 50 && (data.items.size() == 0 || data.items[0] is map);
+    }
+
+    // 1. Users (PII isolated to owner & admin)
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'email', 'role', 'active', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'role', 'nimOrUnit', 'phone', 'photoUrl', 'active', 'createdAt', 'updatedAt']) &&
+                       (incoming().role in ['customer', 'seller'] || (incoming().role == 'admin' && isAdmin())) &&
+                       incoming().active == true &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidUser(incoming());
+      allow update: if isSignedIn() && isValidId(userId) &&
+                       isValidUser(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       (
+                         isAdmin() ||
+                         (
+                           request.auth.uid == userId &&
+                           incoming().role == existing().role &&
+                           incoming().active == existing().active &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'nimOrUnit', 'phone', 'photoUrl', 'updatedAt'])
+                         )
+                       );
+      allow delete: if isAdmin();
+    }
+
+    // 2. Sellers (PII isolated to owner & admin)
+    match /sellers/{sellerId} {
+      allow get: if isSignedIn() && (request.auth.uid == sellerId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && isValidId(sellerId) &&
+                       request.auth.uid == sellerId &&
+                       incoming().sellerId == request.auth.uid &&
+                       incoming().keys().hasAll(['sellerId', 'ownerName', 'businessName', 'campusArea', 'verified', 'active', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['sellerId', 'ownerName', 'businessName', 'phone', 'campusArea', 'verified', 'active', 'createdAt', 'updatedAt']) &&
+                       (incoming().verified == false || isAdmin()) &&
+                       incoming().active == true &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidSeller(incoming());
+      allow update: if isSignedIn() && isValidId(sellerId) &&
+                       isValidSeller(incoming()) &&
+                       incoming().sellerId == existing().sellerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       (
+                         isAdmin() ||
+                         (
+                           request.auth.uid == sellerId &&
+                           incoming().verified == existing().verified &&
+                           incoming().active == existing().active &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['ownerName', 'businessName', 'phone', 'campusArea', 'updatedAt'])
+                         )
+                       );
+      allow delete: if isAdmin();
+    }
+
+    // 3. Stalls (public campus storefront catalog, no PII)
+    match /stalls/{stallId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (existing().active == true || existing().sellerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(stallId) &&
+                       (incoming().sellerId == request.auth.uid || isAdmin()) &&
+                       incoming().keys().hasAll(['sellerId', 'name', 'description', 'campusLocation', 'openHours', 'bannerKey', 'rating', 'totalOrders', 'verified', 'active', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['sellerId', 'name', 'description', 'campusLocation', 'openHours', 'bannerKey', 'imageUrl', 'rating', 'totalOrders', 'verified', 'active', 'createdAt', 'updatedAt']) &&
+                       (incoming().verified == false || isAdmin()) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidStall(incoming());
+      allow update: if isSignedIn() && isValidId(stallId) &&
+                       isValidStall(incoming()) &&
+                       incoming().sellerId == existing().sellerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       (
+                         isAdmin() ||
+                         (
+                           existing().sellerId == request.auth.uid &&
+                           incoming().verified == existing().verified &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'campusLocation', 'openHours', 'bannerKey', 'imageUrl', 'active', 'updatedAt'])
+                         )
+                       );
+      allow delete: if isAdmin();
+    }
+
+    // 4. Categories (admin-managed, readable by signed-in users)
+    match /categories/{categoryId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (existing().active == true || isAdmin());
+      allow create: if isAdmin() && isValidId(categoryId) &&
+                       incoming().keys().hasAll(['name', 'slug', 'iconName', 'sortOrder', 'active', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['name', 'slug', 'iconName', 'sortOrder', 'active', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidCategory(incoming());
+      allow update: if isAdmin() && isValidId(categoryId) &&
+                       isValidCategory(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time;
+      allow delete: if isAdmin() && isValidId(categoryId);
+    }
+
+    // 5. Products
+    match /products/{productId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (existing().active == true || existing().sellerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(productId) &&
+                       (incoming().sellerId == request.auth.uid || isAdmin()) &&
+                       incoming().keys().hasAll(['stallId', 'sellerId', 'categoryId', 'categoryName', 'name', 'description', 'price', 'flashDealActive', 'dailyQuota', 'remainingStock', 'active', 'imageKey', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['stallId', 'sellerId', 'categoryId', 'categoryName', 'name', 'description', 'price', 'discountPrice', 'flashDealActive', 'flashDealLabel', 'dailyQuota', 'remainingStock', 'active', 'imageUrl', 'imageKey', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidProduct(incoming()) &&
+                       exists(/databases/$(database)/documents/stalls/$(incoming().stallId)) &&
+                       get(/databases/$(database)/documents/stalls/$(incoming().stallId)).data.sellerId == incoming().sellerId;
+      allow update: if isSignedIn() && isValidId(productId) &&
+                       isValidProduct(incoming()) &&
+                       incoming().sellerId == existing().sellerId &&
+                       incoming().stallId == existing().stallId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       (
+                         isAdmin() ||
+                         (
+                           existing().sellerId == request.auth.uid &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'categoryId', 'categoryName', 'name', 'description', 'price',
+                             'discountPrice', 'flashDealActive', 'flashDealLabel',
+                             'dailyQuota', 'remainingStock', 'active', 'imageUrl', 'imageKey', 'updatedAt'
+                           ])
+                         )
+                       );
+      allow delete: if isSignedIn() && isValidId(productId) && (existing().sellerId == request.auth.uid || isAdmin());
+    }
+
+    // 6. Pickup Slots (Smart Pickup Scheduler)
+    match /pickup_slots/{slotId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (existing().active == true || existing().sellerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(slotId) &&
+                       (incoming().sellerId == request.auth.uid || isAdmin()) &&
+                       incoming().keys().hasAll(['stallId', 'sellerId', 'date', 'startTime', 'endTime', 'label', 'capacity', 'bookedCount', 'active', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['stallId', 'sellerId', 'date', 'startTime', 'endTime', 'label', 'capacity', 'bookedCount', 'active', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidPickupSlot(incoming()) &&
+                       exists(/databases/$(database)/documents/stalls/$(incoming().stallId)) &&
+                       get(/databases/$(database)/documents/stalls/$(incoming().stallId)).data.sellerId == incoming().sellerId;
+      allow update: if isSignedIn() && isValidId(slotId) &&
+                       isValidPickupSlot(incoming()) &&
+                       incoming().sellerId == existing().sellerId &&
+                       incoming().stallId == existing().stallId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       (
+                         isAdmin() ||
+                         (
+                           existing().sellerId == request.auth.uid &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['date', 'startTime', 'endTime', 'label', 'capacity', 'active', 'updatedAt'])
+                         ) ||
+                         (
+                           existing().active == true &&
+                           incoming().bookedCount == existing().bookedCount + 1 &&
+                           incoming().bookedCount <= existing().capacity &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['bookedCount', 'updatedAt'])
+                         )
+                       );
+      allow delete: if isSignedIn() && isValidId(slotId) && (existing().sellerId == request.auth.uid || isAdmin());
+    }
+
+    // 7. Orders (per-stall pre-orders)
+    match /orders/{orderId} {
+      allow get, list: if isSignedIn() && (existing().customerId == request.auth.uid || existing().sellerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(orderId) &&
+                       incoming().customerId == request.auth.uid &&
+                       incoming().status == 'PENDING_PAYMENT' &&
+                       incoming().paymentStatus == 'PENDING' &&
+                       incoming().keys().hasAll(['orderCode', 'customerId', 'customerName', 'sellerId', 'stallId', 'stallName', 'paymentGroupId', 'items', 'totalAmount', 'discountAmount', 'finalAmount', 'pickupDate', 'pickupSlotId', 'pickupSlotLabel', 'status', 'paymentStatus', 'qrToken', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['orderCode', 'customerId', 'customerName', 'sellerId', 'stallId', 'stallName', 'paymentGroupId', 'items', 'totalAmount', 'discountAmount', 'finalAmount', 'voucherCode', 'pickupDate', 'pickupSlotId', 'pickupSlotLabel', 'status', 'paymentStatus', 'qrToken', 'groupOrderCode', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidOrder(incoming()) &&
+                       exists(/databases/$(database)/documents/stalls/$(incoming().stallId)) &&
+                       exists(/databases/$(database)/documents/pickup_slots/$(incoming().pickupSlotId));
+      allow update: if isSignedIn() && isValidId(orderId) &&
+                       isValidOrder(incoming()) &&
+                       incoming().customerId == existing().customerId &&
+                       incoming().sellerId == existing().sellerId &&
+                       incoming().stallId == existing().stallId &&
+                       incoming().totalAmount == existing().totalAmount &&
+                       incoming().finalAmount == existing().finalAmount &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       (
+                         isAdmin() ||
+                         (
+                           existing().sellerId == request.auth.uid &&
+                           existing().status in ['PAID', 'PREPARING', 'READY_FOR_PICKUP'] &&
+                           (
+                             (existing().status == 'PAID' && incoming().status == 'PREPARING') ||
+                             (existing().status == 'PREPARING' && incoming().status == 'READY_FOR_PICKUP') ||
+                             (existing().status == 'READY_FOR_PICKUP' && incoming().status == 'COMPLETED')
+                           ) &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+                         ) ||
+                         (
+                           existing().customerId == request.auth.uid &&
+                           existing().status == 'PENDING_PAYMENT' &&
+                           incoming().status == 'CANCELLED' &&
+                           incoming().paymentStatus == 'CANCEL' &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'paymentStatus', 'updatedAt'])
+                         )
+                       );
+      allow delete: if isAdmin();
+    }
+
+    // 8. Payments (Midtrans Sandbox transactions)
+    match /payments/{paymentId} {
+      allow get, list: if isSignedIn() && (existing().customerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(paymentId) &&
+                       incoming().customerId == request.auth.uid &&
+                       incoming().status == 'PENDING' &&
+                       incoming().keys().hasAll(['paymentGroupId', 'orderIds', 'customerId', 'grossAmount', 'status', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['paymentGroupId', 'orderIds', 'customerId', 'grossAmount', 'snapToken', 'redirectUrl', 'paymentType', 'midtransTransactionId', 'status', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidPayment(incoming());
+      allow update: if isSignedIn() && isValidId(paymentId) &&
+                       isValidPayment(incoming()) &&
+                       incoming().customerId == existing().customerId &&
+                       incoming().grossAmount == existing().grossAmount &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       (
+                         isAdmin() ||
+                         (
+                           existing().customerId == request.auth.uid &&
+                           existing().status == 'PENDING' &&
+                           (
+                             (incoming().status == 'PENDING' && incoming().diff(existing()).affectedKeys().hasOnly(['snapToken', 'redirectUrl', 'paymentType', 'updatedAt'])) ||
+                             (incoming().status == 'CANCEL' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+                           )
+                         )
+                       );
+      allow delete: if isAdmin();
+    }
+
+    // 9. Notifications
+    match /notifications/{notificationId} {
+      allow get, list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(notificationId) &&
+                       incoming().read == false &&
+                       incoming().keys().hasAll(['userId', 'title', 'message', 'type', 'read', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'title', 'message', 'type', 'relatedOrderId', 'read', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidNotification(incoming()) &&
+                       (
+                         isAdmin() ||
+                         incoming().userId == request.auth.uid ||
+                         (
+                           'relatedOrderId' in incoming() &&
+                           exists(/databases/$(database)/documents/orders/$(incoming().relatedOrderId)) &&
+                           (
+                             get(/databases/$(database)/documents/orders/$(incoming().relatedOrderId)).data.sellerId == request.auth.uid ||
+                             get(/databases/$(database)/documents/orders/$(incoming().relatedOrderId)).data.customerId == request.auth.uid
+                           )
+                         )
+                       );
+      allow update: if isSignedIn() && isValidId(notificationId) &&
+                       isValidNotification(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       (
+                         isAdmin() ||
+                         (existing().userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt']))
+                       );
+      allow delete: if isSignedIn() && isValidId(notificationId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // 10. Vouchers
+    match /vouchers/{voucherId} {
+      allow get, list: if isSignedIn() && (existing().ownerUserId == '' || existing().ownerUserId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(voucherId) &&
+                       incoming().keys().hasAll(['code', 'title', 'description', 'discountAmount', 'minOrderAmount', 'pointsCost', 'ownerUserId', 'redeemed', 'active', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['code', 'title', 'description', 'discountAmount', 'minOrderAmount', 'pointsCost', 'ownerUserId', 'redeemed', 'active', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidVoucher(incoming()) &&
+                       (
+                         isAdmin() ||
+                         (incoming().ownerUserId == request.auth.uid && incoming().redeemed == false && incoming().active == true)
+                       );
+      allow update: if isSignedIn() && isValidId(voucherId) &&
+                       isValidVoucher(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       (
+                         isAdmin() ||
+                         (
+                           existing().ownerUserId == request.auth.uid &&
+                           existing().redeemed == false &&
+                           incoming().redeemed == true &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['redeemed', 'updatedAt'])
+                         )
+                       );
+      allow delete: if isAdmin();
+    }
+
+    // 11. Loyalty Points
+    match /loyalty_points/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && isValidId(userId) &&
+                       isValidLoyaltyPoints(incoming()) &&
+                       incoming().keys().hasAll(['userId', 'points', 'totalEarned', 'totalRedeemed', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'points', 'totalEarned', 'totalRedeemed', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       (
+                         isAdmin() ||
+                         (request.auth.uid == userId && incoming().userId == request.auth.uid && incoming().points == 0 && incoming().totalEarned == 0 && incoming().totalRedeemed == 0)
+                       );
+      allow update: if isSignedIn() && isValidId(userId) &&
+                       isValidLoyaltyPoints(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       (
+                         isAdmin() ||
+                         (
+                           request.auth.uid == userId &&
+                           incoming().totalEarned == existing().totalEarned &&
+                           incoming().points < existing().points &&
+                           incoming().totalRedeemed == existing().totalRedeemed + (existing().points - incoming().points) &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['points', 'totalRedeemed', 'updatedAt'])
+                         )
+                       );
+      allow delete: if isAdmin();
+    }
+
+    // 12. Group Orders
+    match /group_orders/{groupId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (existing().status == 'OPEN' || existing().hostUserId == request.auth.uid || request.auth.uid in existing().memberUids || isAdmin());
+      allow create: if isSignedIn() && isValidId(groupId) &&
+                       incoming().hostUserId == request.auth.uid &&
+                       incoming().status == 'OPEN' &&
+                       incoming().keys().hasAll(['code', 'hostUserId', 'hostName', 'stallId', 'stallName', 'title', 'pickupDate', 'pickupSlotId', 'pickupSlotLabel', 'closesAtMillis', 'status', 'memberUids', 'items', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['code', 'hostUserId', 'hostName', 'stallId', 'stallName', 'title', 'pickupDate', 'pickupSlotId', 'pickupSlotLabel', 'closesAtMillis', 'status', 'memberUids', 'items', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidGroupOrder(incoming()) &&
+                       exists(/databases/$(database)/documents/stalls/$(incoming().stallId));
+      allow update: if isSignedIn() && isValidId(groupId) &&
+                       isValidGroupOrder(incoming()) &&
+                       incoming().hostUserId == existing().hostUserId &&
+                       incoming().code == existing().code &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       (
+                         isAdmin() ||
+                         (
+                           existing().hostUserId == request.auth.uid &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'items', 'memberUids', 'pickupDate', 'pickupSlotId', 'pickupSlotLabel', 'updatedAt'])
+                         ) ||
+                         (
+                           existing().status == 'OPEN' &&
+                           incoming().status == 'OPEN' &&
+                           request.auth.uid in incoming().memberUids &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['items', 'memberUids', 'updatedAt'])
+                         )
+                       );
+      allow delete: if isSignedIn() && isValidId(groupId) && (existing().hostUserId == request.auth.uid || isAdmin());
+    }
+
+    // 13. Admins
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
+      allow list, write: if isAdmin();
+    }
+  }
+}
